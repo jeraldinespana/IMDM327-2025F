@@ -245,8 +245,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 411673e8404de4d4aaef7abc3f89aa8d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  imageFileName: UMD-logo.png
-  decimate: 2
+  imageFileName: kandinsky.jpg
+  decimate: 20
   depthOffset: 30
   alphaThreshold: 0.02
   timescale: 0.001

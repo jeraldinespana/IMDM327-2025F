@@ -49,8 +49,8 @@ public class ImagePlay : MonoBehaviour
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube); // make a tiny cube
                 cube.transform.SetParent(transform, false);
                 cube.transform.localPosition = new Vector3(x, y, depthOffset); // grid placement
-                // float scaleZ = 1f + 30f * (pixel.r); // simple scale based on red channel
-                // cube.transform.localScale = new Vector3(1f, 1f, scaleZ);
+                float scaleZ = 1f + 30f * (pixel.r); // simple scale based on red channel
+                cube.transform.localScale = new Vector3(1f, 1f, scaleZ);
 
                 cube.GetComponent<MeshRenderer>().material.color = pixel; // color the cube
                 _cubes[index] = cube; // remember this cube
