@@ -10,3 +10,6 @@ Assignment 2 Microbots
 
 https://github.com/user-attachments/assets/e510312d-2ab5-4b58-8f11-f5d022eeb9b3
 
+Reprt pdf: [IMDM327-Assignment2-Report.pdf](https://github.com/user-attachments/files/23012739/IMDM327-Assignment2-Report.pdf)
+
+
