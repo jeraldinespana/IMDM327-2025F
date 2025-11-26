@@ -9,7 +9,7 @@ public class Microbot : MonoBehaviour
     public MicrobotState currState = MicrobotState.Boids;
     private GameObject[] body;
     BodyProperty[] bp;
-    private int numberOfCaps = 15;
+    private int numberOfCaps = 1;
     public float fastforwardConst = 1f;
     TrailRenderer[] trailRenderer;
     private GameObject interactivePoint;
@@ -27,7 +27,8 @@ public class Microbot : MonoBehaviour
     public Vector3[] structures;
     private bool builtStructure = false;
     private bool[] inPlace;
-
+    private List<Vector3> drawPoints = new List<Vector3>();
+    public int samplesPerTrail = 30;
 
     struct BodyProperty 
     {                   
@@ -66,7 +67,7 @@ public class Microbot : MonoBehaviour
             body[i] = GameObject.CreatePrimitive(PrimitiveType.Capsule); 
 
             // initial conditions
-            float r = 100f;
+            float r = 40f;
             
             body[i].transform.position = new Vector3(r * Mathf.Sin(i * 2f * Mathf.PI / numberOfCaps),
                                                       r * Mathf.Cos(i * 2f * Mathf.PI / numberOfCaps),
@@ -79,7 +80,7 @@ public class Microbot : MonoBehaviour
             // + This is just pretty trails
             trailRenderer[i] = body[i].AddComponent<TrailRenderer>();
             // Configure the TrailRenderer's properties
-            trailRenderer[i].time = 20.0f;  // Duration of the trail
+            trailRenderer[i].time = 5.0f;  // Duration of the trail
             trailRenderer[i].startWidth = 0.7f;  // Width of the trail at the start
             trailRenderer[i].endWidth = 0.1f;    // Width of the trail at the end
             // a material to the trail
@@ -171,7 +172,7 @@ public class Microbot : MonoBehaviour
                 Vector3 attract = dist.normalized * interactiveMass;
 
                 bp[i].acceleration += attract;
-                trailRenderer[i].time = 20f;
+                trailRenderer[i].time = 5.0f;
                 Gradient gradient = new Gradient();
                 float h = (i / (float)numberOfCaps) % 1f;
                 float s = 0.45f + bp[i].acceleration.sqrMagnitude / 1000f;
@@ -213,16 +214,26 @@ public class Microbot : MonoBehaviour
 
             }
 
-            center /= numberOfCaps;
-            
-            MakeStructure(center);
-            builtStructure = true;
-            currState = MicrobotState.Structure;
+            for (int i = 0; i < numberOfCaps; i++)
+            {
+                trailRenderer[i].time = Mathf.Infinity;
+            }
+
+            drawPoints.Clear();
 
             for (int i = 0; i < numberOfCaps; i++)
             {
-                bp[i].velocity = Vector3.zero;
+                List<Vector3> points = SampleTrailEvenly(trailRenderer[i], samplesPerTrail);
+                drawPoints.AddRange(points);
             }
+
+            Mesh mesh = TriangulateSnake(drawPoints, 0.5f);
+
+            GameObject meshObj = new GameObject("DrawMesh", typeof(MeshFilter), typeof(MeshRenderer));
+            meshObj.GetComponent<MeshFilter>().mesh = mesh;
+            meshObj.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Standard"));
+
+            builtStructure = true;
         }
 
         else if (mp.RightHandPinch && builtStructure) 
@@ -307,6 +318,104 @@ public class Microbot : MonoBehaviour
         //}
 
         frameCount++;
+    }
+
+    private static List<Vector3> SampleTrailEvenly(TrailRenderer tr, int numOfPoints)
+    {
+        Vector3[] pos = new Vector3[tr.positionCount];
+        int len = tr.GetPositions(pos);
+
+        if (len < 2)
+            return new List<Vector3>();
+
+        List<float> cumulative = new List<float>();
+        cumulative.Add(0);
+
+        float total = 0;
+
+        for (int i = 1; i < len; i++)
+        {
+            total += Vector3.Distance(pos[i], pos[i - 1]);
+            cumulative.Add(total);
+        }
+
+        List<Vector3> result = new List<Vector3>();
+        float step = total / (numOfPoints - 1);
+        int posInd = 0;
+
+        for (int i = 0; i < numOfPoints; i++)
+        {
+            float targetDist = step * i;
+            while (posInd < cumulative.Count - 2 && cumulative[posInd + 1] < targetDist)
+            {
+                posInd++;
+            }
+
+            float t = Mathf.InverseLerp(cumulative[posInd], cumulative[posInd + 1], targetDist);
+            result.Add(Vector3.Lerp(pos[posInd], pos[posInd + 1], t));
+        }
+        return result;
+    }
+
+    public Mesh TriangulateSnake(List<Vector3> points, float width)
+    {
+        if (points == null || points.Count < 2)
+        {
+            return null;
+        } int n = points.Count;
+
+        Vector3[] verts = new Vector3[n * 2];
+        Vector3[] norms = new Vector3[n * 2];
+        int[] tris = new int[(n - 1) * 6];
+
+        for (int i = 0; i < n; i++)
+        {
+            Vector3 forward;
+
+            if (i == 0) forward = (points[1] - points[0]).normalized;
+            else if (i == n - 1) forward = (points[n - 1] - points[n - 2]).normalized;
+            else forward = (points[i + 1] - points[i - 1]).normalized;
+
+            Vector3 up = Vector3.up;
+
+            if (Mathf.Abs(Vector3.Dot(up, forward)) > 0.9f)
+                up = Vector3.right;
+
+            Vector3 side = Vector3.Cross(forward, up).normalized * width;
+
+            verts[i * 2] = points[i] - side;     // left  
+            verts[i * 2 + 1] = points[i] + side; // right
+
+            norms[i * 2] = Vector3.up;
+            norms[i * 2 + 1] = Vector3.up;
+        }
+
+        // --- Generate triangles --
+        int ti = 0;
+        for (int i = 0; i < n - 1; i++)
+        {
+            int i0 = i * 2;
+            int i1 = i * 2 + 1;
+            int i2 = (i + 1) * 2;
+            int i3 = (i + 1) * 2 + 1;
+
+            // Left triangle
+            tris[ti++] = i0;
+            tris[ti++] = i2;
+            tris[ti++] = i1;
+
+            // Right triangle
+            tris[ti++] = i1;
+            tris[ti++] = i2;
+            tris[ti++] = i3;
+        }
+
+        Mesh m = new Mesh();
+        m.vertices = verts;
+        m.normals = norms;
+        m.triangles = tris;
+
+        return m;
     }
 
     private Vector3 SeparationFunc(int curr)
@@ -397,38 +506,6 @@ public class Microbot : MonoBehaviour
         return Vector3.zero;
     }
 
-    //honestly just couldnt make this work the way I wanted to
-    private void MakeStructure(Vector3 point)
-    {
-        inPlace = new bool[numberOfCaps];
-        structures = new Vector3[numberOfCaps];
-
-        int dimension = Mathf.CeilToInt(numberOfCaps / 3f);
-        float spacing = 3f;
-
-        int index = 0;
-        for (int i = 0; i < dimension; i++)
-        {
-            for (int j = 0; j < dimension; j++)
-            {
-                for (int k = 0; k < dimension; k++)
-                {
-                    bool surface = i == 0 || i == dimension - 1 ||
-                        j == 0 || j == dimension - 1 ||
-                        k == 0 || k == dimension - 1;
-                    if (surface && index < numberOfCaps)
-                    {
-                        Vector3 offset = new Vector3((i - (dimension - 1) / 2f) * spacing,
-                            (j - (dimension - 1) / 2f) * spacing,
-                            (k - (dimension - 1) / 2f) * spacing);
-
-                        structures[index] = point + offset;
-                        index++;
-                    }
-                }
-            }
-        }
-    }
 
     private Vector3 CalculateStructure(int curr)
     {
