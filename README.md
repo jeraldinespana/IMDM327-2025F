@@ -30,5 +30,6 @@ Rep Video:
 https://github.com/user-attachments/assets/a0ea9fd1-9d0b-48d7-90b1-aa17ba419bfb
 
 
-Report PDF:
+Report PDF: 
+[Final Project Report - JE.pdf](https://github.com/user-attachments/files/24249862/Final.Project.Report.-.JE.pdf)
 
