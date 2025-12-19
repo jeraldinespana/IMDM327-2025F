@@ -28,7 +28,7 @@ public class Microbot : MonoBehaviour
     private bool builtStructure = false;
     private bool[] inPlace;
     private List<Vector3> drawPoints = new List<Vector3>();
-    public int samplesPerTrail = 30;
+    public int samplesPerTrail = 15;
 
     struct BodyProperty 
     {                   
@@ -227,11 +227,11 @@ public class Microbot : MonoBehaviour
                 drawPoints.AddRange(points);
             }
 
-            Mesh mesh = TriangulateSnake(drawPoints, 0.5f);
+            Mesh mesh = TriangulateSnake(drawPoints, 2f);
 
             GameObject meshObj = new GameObject("DrawMesh", typeof(MeshFilter), typeof(MeshRenderer));
             meshObj.GetComponent<MeshFilter>().mesh = mesh;
-            meshObj.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Standard"));
+            meshObj.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Sprites/Default"));
 
             builtStructure = true;
         }
@@ -367,6 +367,7 @@ public class Microbot : MonoBehaviour
         Vector3[] verts = new Vector3[n * 2];
         Vector3[] norms = new Vector3[n * 2];
         int[] tris = new int[(n - 1) * 6];
+        Color[] colors = new Color[n * 2];
 
         for (int i = 0; i < n; i++)
         {
@@ -388,6 +389,12 @@ public class Microbot : MonoBehaviour
 
             norms[i * 2] = Vector3.up;
             norms[i * 2 + 1] = Vector3.up;
+
+            float t = i / (float)(n - 1);
+            Color c = Color.HSVToRGB(t, 1f, 1f);
+
+            colors[i * 2] = c;
+            colors[i * 2 + 1] = c;
         }
 
         // --- Generate triangles --
@@ -414,6 +421,9 @@ public class Microbot : MonoBehaviour
         m.vertices = verts;
         m.normals = norms;
         m.triangles = tris;
+        m.colors = colors;
+
+
 
         return m;
     }
